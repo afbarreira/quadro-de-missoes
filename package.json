@@ -1,0 +1,19 @@
+{
+  "name": "quadro-de-missoes",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Gerenciador de campanhas de RPG (Tormenta20 e sistema próprio)",
+  "scripts": {
+    "android:add": "npx cap add android",
+    "android:sync": "npx cap sync android",
+    "android:open": "npx cap open android",
+    "android:build": "npx cap sync android && cd android && ./gradlew assembleDebug"
+  },
+  "dependencies": {
+    "@capacitor/android": "^6.1.2",
+    "@capacitor/core": "^6.1.2"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^6.1.2"
+  }
+}

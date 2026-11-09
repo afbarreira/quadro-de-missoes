@@ -1,0 +1,7 @@
+{
+  "appId": "com.quadromissoes.app",
+  "appName": "Quadro de Missões",
+  "webDir": "www",
+  "server": { "androidScheme": "https" },
+  "android": { "allowMixedContent": false }
+}
