@@ -1,15 +1,15 @@
-# Quadro de Missões
+# Omni RP
 
 Gerenciador de campanhas de RPG (Tormenta20 e sistema próprio): quadro de missões, mapa interativo, fichas e grupo.
 
-O app inteiro está em `www/index.html` (um arquivo só). O Android é gerado com o [Capacitor](https://capacitorjs.com).
+O app inteiro está em `www/index.html` (um arquivo só). Ícone, tela de abertura e logos ficam em `resources/` (o workflow copia os ícones para o Android). O Android é gerado com o [Capacitor](https://capacitorjs.com).
 
 ## Gerar o APK pelo GitHub (sem instalar nada)
 
 1. Crie um repositório no GitHub e envie estes arquivos (pasta `.github` incluída).
 2. A cada envio para a branch `main`, a aba **Actions** roda "Gerar APK".
    Também dá para rodar na mão: Actions → Gerar APK → *Run workflow*.
-3. Quando terminar (uns 5 min), abra a execução e baixe **quadro-de-missoes-apk** em *Artifacts*.
+3. Quando terminar (uns 5 min), abra a execução e baixe **omni-rp-apk** em *Artifacts*.
    Dentro do zip está o `app-debug.apk` para instalar no celular
    (permita "instalar apps de fontes desconhecidas").
 
@@ -27,10 +27,15 @@ npm run android:open
 
 Depois de mudar o `www/index.html`, rode `npx cap sync android` (ou `npm run android:build`).
 
-## Contas de teste
+## Layouts das campanhas
 
-Senha `123456`: `mestre@teste.com`, `jogador1@teste.com`, `jogador2@teste.com`, `jogador3@teste.com`.
-Na tela de login dá para restaurar os dados de teste.
+Na aba ⚙ Ajustes de cada campanha, o mestre escolhe entre Medieval (padrão), Ciberpunk, Steampunk, Modern e Omni.
+O layout vale para todos os participantes daquela campanha. Fora das campanhas o app usa o visual Omni.
+
+## Contas
+
+O APK não tem contas de teste: cada pessoa cria a própria conta (salva no Supabase).
+Se o login pedir confirmação de e-mail, desligue em Supabase → Authentication → Sign In / Providers → Email → *Confirm email*.
 
 ## Observações
 

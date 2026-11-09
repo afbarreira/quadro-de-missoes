@@ -1,7 +1,8 @@
 {
   "appId": "com.quadromissoes.app",
-  "appName": "Quadro de Missões",
+  "appName": "Omni RP",
   "webDir": "www",
+  "backgroundColor": "#07050c",
   "server": { "androidScheme": "https" },
-  "android": { "allowMixedContent": false }
+  "android": { "allowMixedContent": false, "backgroundColor": "#07050c" }
 }
