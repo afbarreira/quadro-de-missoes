@@ -34,8 +34,8 @@ Na tela de login dá para restaurar os dados de teste.
 
 ## Observações
 
-- **Dados:** por enquanto ficam salvos no próprio aparelho (localStorage). O rascunho do banco
-  para o Supabase está em `supabase/schema.sql`.
+- **Dados:** sem Supabase configurado, ficam no próprio aparelho (modo de teste). Com o Supabase,
+  ficam no servidor (veja abaixo).
 - **Internet:** o leitor de PDF de fichas e as fontes vêm de CDN na primeira vez; mapas por URL
   também precisam de internet.
 - **Imagens dos mapas:** não vêm no app. O preset Tormenta 20 usa um endereço (URL) para Arton;
@@ -45,9 +45,27 @@ Na tela de login dá para restaurar os dados de teste.
 - **APK de teste (debug):** serve para instalar e testar. Para publicar na Play Store, é preciso
   gerar um `.aab` assinado (`./gradlew bundleRelease` com uma keystore).
 
-## Próximos passos com o Supabase
+## Ligar ao Supabase (contas e dados online)
 
-1. Criar o projeto e rodar `supabase/schema.sql` no SQL Editor.
-2. Ativar RLS em todas as tabelas e criar políticas: mestre lê/escreve tudo da campanha;
-   jogador lê missões visíveis, as próprias fichas e as compartilhadas; anotações só do autor.
-3. Trocar a camada `DB` do `index.html` (load/save) por chamadas ao `supabase-js`.
+1. Crie um projeto em [supabase.com](https://supabase.com) (plano gratuito serve).
+2. **SQL Editor → New query**: cole o conteúdo de `supabase/setup.sql` e clique em **Run**.
+3. **Authentication → Sign In / Providers → Email**: desligue **Confirm email**
+   (assim os amigos entram logo depois de criar a conta, sem precisar confirmar por e-mail).
+4. **Project Settings → API**: copie a **Project URL** e a chave **anon public**.
+5. No `www/index.html`, procure por `SUPABASE_URL` e preencha:
+   ```js
+   const SUPABASE_URL = 'https://SEU-PROJETO.supabase.co';
+   const SUPABASE_KEY = 'sua-chave-anon-public';
+   ```
+6. Envie para o GitHub: o Actions gera o novo APK.
+
+Com as duas linhas preenchidas, o app passa a usar contas reais (e-mail e senha), salva tudo no
+servidor e sincroniza em tempo real entre os celulares. As contas de teste somem. Com as linhas
+vazias, ele volta ao modo local de teste.
+
+Cada amigo cria a conta pelo próprio app. O mestre cria a campanha e passa o código, ou convida
+pelo e-mail da conta.
+
+**Segurança:** é um modelo para grupo de amigos. Qualquer pessoa com conta consegue ler os dados
+da mesa (a chave `anon` fica dentro do APK). Para fechar, desligue **Allow new users to sign up**
+em Authentication depois que todos tiverem conta.

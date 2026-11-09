@@ -409,6 +409,7 @@ button.skill{background:none;border:0;border-bottom:1px solid var(--line);color:
 .scard{background:var(--surface2);border:1px solid var(--line);border-radius:14px;padding:12px;cursor:pointer}
 .scard:active{background:#2c241a}
 .pblock{padding:10px 0;border-bottom:1px solid var(--line)}.pblock:last-child{border-bottom:0}
+.cdot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-left:6px;vertical-align:2px;background:#5f9a48}.cdot.sync{background:#d8a95e}.cdot.erro{background:#c0574a}
 @media print{.topbar,.tabbar,.fab,.board-tools,.hint{display:none}}
 </style>
 </head>
@@ -681,10 +682,11 @@ let mem = null;
 const DB = {
   d: null,
   load() {
+    if (CLOUD) { this.d = emptyData(); return; }
     try { const raw = localStorage.getItem(KEY); if (raw) { this.d = JSON.parse(raw); if (!this.d.maps) { seedMaps(this.d); this.save(); } if (!this.d.routes) this.d.routes = []; return; } } catch (e) {}
     this.d = mem || seed(); this.save();
   },
-  save() { try { localStorage.setItem(KEY, JSON.stringify(this.d)); return true; } catch (e) { mem = this.d; return false; } },
+  save() { if (CLOUD) { scheduleSync(); return true; } try { localStorage.setItem(KEY, JSON.stringify(this.d)); return true; } catch (e) { mem = this.d; return false; } },
   reset() { try { localStorage.removeItem(KEY); } catch (e) {} mem = null; this.d = seed(); this.save(); },
   user(id) { return this.d.users.find(u => u.id === id); },
   camp(id) { return this.d.campaigns.find(c => c.id === id); },
@@ -791,12 +793,12 @@ function viewLogin() {
       </form>
       <p class="small muted" style="text-align:center;margin:14px 0 0">${reg ? 'Já tem conta?' : 'Ainda não tem conta?'} <a href="#" data-act="auth-toggle" style="color:var(--gold3)">${reg ? 'Entrar' : 'Criar conta'}</a></p>
     </div>
-    <div class="divider">CONTAS DE TESTE · senha 123456</div>
+    ${CLOUD ? '<p class="small muted" style="text-align:center">🌐 Conectado ao servidor do grupo</p>' : `<div class="divider">CONTAS DE TESTE · senha 123456</div>
     ${tests.map(u => {
       const roles = DB.d.members.filter(m => m.user_id === u.id && m.status === 'active').map(m => (m.role === 'master' ? 'Mestre' : 'Jogador') + ' em ' + DB.camp(m.campaign_id)?.name);
       return `<button class="testacc" data-act="login-test" data-id="${u.id}">${avatar(u)}<span class="grow"><b>${esc(u.name)}</b> <span class="muted small">${esc(u.email)}</span><br><span class="small muted">${esc(roles.join(' · ') || 'Sem campanhas — teste entrar por código')}</span></span></button>`;
     }).join('')}
-    <p class="small muted" style="text-align:center;margin-top:16px"><a href="#" data-act="reset-data" style="color:#c9ab85">Restaurar dados de teste</a></p>
+    <p class="small muted" style="text-align:center;margin-top:16px"><a href="#" data-act="reset-data" style="color:#c9ab85">Restaurar dados de teste</a></p>`}
   </div>`;
 }
 
@@ -819,7 +821,7 @@ function viewHome() {
       <div class="small" style="margin-top:8px;color:#e5cfa6">👥 ${count} membro${count > 1 ? 's' : ''} · 📜 ${open} missõe${open === 1 ? '' : 's'} abertas</div>
     </div>`;
   };
-  return `<div class="topbar"><div class="in-top">${avatar(u)}<div class="grow"><div class="title">Olá, ${esc(u.name)}</div><div class="small muted">${esc(u.email)}</div></div><button class="btn sm ghost" data-act="logout">Sair</button></div></div>
+  return `<div class="topbar"><div class="in-top">${avatar(u)}<div class="grow"><div class="title">Olá, ${esc(u.name)}${CLOUD ? ' <span id="cloudDot" class="cdot ok" title="Sincronizado"></span>' : ''}</div><div class="small muted">${esc(u.email)}</div></div><button class="btn sm ghost" data-act="logout">Sair</button></div></div>
   <div class="wrap">
     <div class="row" style="margin:6px 0 16px"><button class="btn gold grow" data-act="create-camp-open">✦ Criar campanha</button><button class="btn grow" data-act="join-open">⌘ Entrar com código</button></div>
     ${invites.length ? `<div class="panel"><h3>✉ Convites recebidos</h3>${invites.map(m => { const c = DB.camp(m.campaign_id), o = DB.user(c.owner_id); return `<div class="item"><div class="grow"><div class="t">${esc(c.name)}</div><div class="small muted">${esc(o?.name)} te convidou · ${SYSTEMS[c.system]}</div></div><button class="btn sm ghost" data-act="invite-decline" data-id="${m.id}">Recusar</button><button class="btn sm gold" data-act="invite-accept" data-id="${m.id}">Aceitar</button></div>`; }).join('')}</div>` : ''}
@@ -1380,8 +1382,8 @@ function importMissions(obj) {
 const ACT = {
   'auth-toggle'() { S.authMode = S.authMode === 'login' ? 'register' : 'login'; render(); },
   'login-test'(el) { setSession(el.dataset.id); S.view = 'home'; render(); toast('Entrou como ' + me().name); },
-  'reset-data'() { askConfirm('Restaurar todas as contas, campanhas e missões de teste? Tudo que você criou será apagado.', 'Restaurar', () => { DB.reset(); setSession(null); render(); toast('Dados de teste restaurados'); }); },
-  logout() { setSession(null); S.view = 'login'; S.authMode = 'login'; render(); },
+  'reset-data'() { if (CLOUD) return; askConfirm('Restaurar todas as contas, campanhas e missões de teste? Tudo que você criou será apagado.', 'Restaurar', () => { DB.reset(); setSession(null); render(); toast('Dados de teste restaurados'); }); },
+  logout() { if (CLOUD) { cloudLogout(); return; } setSession(null); S.view = 'login'; S.authMode = 'login'; render(); },
   home() { S.view = 'home'; S.cid = null; render(); window.scrollTo(0, 0); },
   'open-camp'(el) { S.cid = el.dataset.id; S.view = 'campaign'; S.tab = 'missoes'; S.filter = 'todas'; S.search = ''; render(); window.scrollTo(0, 0); },
   tab(el) { MAPUI.mode = null; MAPUI.pts = []; S.tab = el.dataset.tab; render(); window.scrollTo(0, 0); },
@@ -2057,7 +2059,7 @@ Object.assign(ACT, {
     const m = DB.d.maps.find(x => x.id === el.dataset.id), file = $('#mapImgPick').files[0], url = $('#mapImgUrl').value.trim(), st = $('#mapImgStatus');
     if (!file && !url) { st.textContent = 'Escolha um arquivo ou informe o endereço.'; return; }
     st.textContent = 'Carregando imagem…';
-    (file ? compressImage(file) : loadImageSize(url).then(sz => ({ image: url, ...sz }))).then(img => {
+    (file ? compressImage(file).then(storeImage) : loadImageSize(url).then(sz => ({ image: url, ...sz }))).then(img => {
       const sx = img.w / m.w, sy = img.h / m.h, tf = ([x, y]) => [Math.round(x * sx), Math.round(y * sy)];
       DB.d.markers.filter(k => k.map_id === m.id).forEach(k => { [k.x, k.y] = tf([k.x, k.y]); });
       DB.d.regions.filter(r => r.map_id === m.id).forEach(r => { r.points = r.points.map(tf); });
@@ -2127,7 +2129,7 @@ function mapSubmit(f, fd, v) {
     const file = $('#mapPick').files[0], st = $('#mapAddStatus'), url = v('url'), preset = MAPUI.pendingPreset;
     if (!file && !url) { MAPUI.pendingPreset = false; st.textContent = 'Escolha a imagem ou informe o endereço.'; st.style.color = '#f19a8c'; return true; }
     st.textContent = file ? 'Preparando imagem…' : 'Carregando imagem do endereço…'; st.style.color = '';
-    const load = file ? compressImage(file) : loadImageSize(url).then(sz => ({ image: url, ...sz })).catch(err => {
+    const load = file ? compressImage(file).then(storeImage) : loadImageSize(url).then(sz => ({ image: url, ...sz })).catch(err => {
       if (!preset) throw err;
       toast('A imagem não carregou nesta visualização; ela aparece no APK ou no navegador.');
       return { image: url, w: 3229, h: 2166 };
@@ -2394,6 +2396,127 @@ function syncWizard() {
   });
 }
 
+// =====================================================================
+//  SUPABASE — preencha as duas linhas abaixo para usar o app online.
+//  Supabase → Project Settings → API: "Project URL" e a chave "anon public".
+//  Com as duas vazias o app funciona sozinho no aparelho, com as contas de teste.
+// =====================================================================
+const SUPABASE_URL = '';
+const SUPABASE_KEY = '';
+const CLOUD = !!(SUPABASE_URL && SUPABASE_KEY);
+let sb = null;
+const COLLS = ['users', 'campaigns', 'members', 'missions', 'checks', 'notes', 'sheets', 'maps', 'markers', 'regions', 'routes'];
+const docId = (c, x) => x.id || (c === 'checks' ? x.mission_id + ':' + x.item_id : '');
+let snap = {};
+function takeSnap() { snap = {}; COLLS.forEach(c => { snap[c] = new Map((DB.d[c] || []).filter(x => docId(c, x)).map(x => [docId(c, x), JSON.stringify(x)])); }); }
+function emptyData() { const d = {}; COLLS.forEach(c => { d[c] = []; }); return d; }
+function setCloudStatus(st) { const el = $('#cloudDot'); if (el) { el.className = 'cdot ' + st; el.title = { ok: 'Sincronizado', sync: 'Salvando…', erro: 'Erro ao salvar' }[st] || ''; } }
+
+let syncT = null, syncing = false, syncAgain = false;
+function scheduleSync() { if (!CLOUD || !sb || !S.user) return; setCloudStatus('sync'); clearTimeout(syncT); syncT = setTimeout(pushChanges, 350); }
+async function pushChanges() {
+  if (syncing) { syncAgain = true; return; }
+  syncing = true;
+  try {
+    const ups = [], jsons = [], dels = [];
+    COLLS.forEach(c => {
+      const cur = new Map((DB.d[c] || []).filter(x => docId(c, x)).map(x => [docId(c, x), x])), old = snap[c] || new Map();
+      cur.forEach((x, id) => { const j = JSON.stringify(x); if (old.get(id) !== j) { ups.push({ collection: c, id, data: x }); jsons.push([c, id, j]); } });
+      old.forEach((_, id) => { if (!cur.has(id)) dels.push([c, id]); });
+    });
+    for (let i = 0; i < ups.length; i += 200) { const { error } = await sb.from('docs').upsert(ups.slice(i, i + 200)); if (error) throw error; }
+    jsons.forEach(([c, id, j]) => { (snap[c] = snap[c] || new Map()).set(id, j); });
+    for (const [c, id] of dels) { const { error } = await sb.from('docs').delete().eq('collection', c).eq('id', id); if (error) throw error; snap[c].delete(id); }
+    setCloudStatus('ok');
+  } catch (e) { console.error(e); setCloudStatus('erro'); toast('Não consegui salvar no servidor: ' + (e.message || e)); }
+  syncing = false;
+  if (syncAgain) { syncAgain = false; pushChanges(); }
+}
+async function cloudLoad() {
+  const d = emptyData();
+  for (let from = 0; ; from += 1000) {
+    const { data, error } = await sb.from('docs').select('collection,id,data').range(from, from + 999);
+    if (error) throw error;
+    data.forEach(r => { if (d[r.collection]) d[r.collection].push(r.data); });
+    if (data.length < 1000) break;
+  }
+  DB.d = d; takeSnap();
+}
+let pendingRender = false;
+const EDITING_MODALS = ['missionEdit', 'sheetEdit', 'builder', 'sheetWizard', 'routeForm', 'markerEdit', 'regionEdit', 'createCamp', 'join', 'mapEdit', 'mapManage', 'importJson', 'sheetJson', 'mapData', 'pdfImport', 'importPreview'];
+function softRender() {
+  const a = document.activeElement;
+  if (a && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName) || drag || mg || vdrag) { pendingRender = true; return; }
+  pendingRender = false;
+  const y = window.scrollY; render(); window.scrollTo(0, y);
+  if (M && !EDITING_MODALS.includes(M.kind)) refreshModal();
+}
+document.addEventListener('focusout', () => { if (pendingRender) setTimeout(softRender, 50); });
+function cloudSubscribe() {
+  sb.channel('docs-sync').on('postgres_changes', { event: '*', schema: 'public', table: 'docs' }, p => {
+    const r = (p.new && p.new.collection) ? p.new : p.old; if (!r || !DB.d[r.collection]) return;
+    const c = r.collection, id = r.id, arr = DB.d[c], i = arr.findIndex(x => docId(c, x) === id);
+    if (p.eventType === 'DELETE') { if (i < 0) return; arr.splice(i, 1); snap[c] && snap[c].delete(id); }
+    else {
+      const x = p.new.data, j = JSON.stringify(x);
+      if (snap[c] && snap[c].get(id) === j) return;
+      if (i >= 0) arr[i] = x; else arr.push(x);
+      (snap[c] = snap[c] || new Map()).set(id, j);
+    }
+    softRender();
+  }).subscribe();
+}
+const PLAYER_COLORS = ['#a8322a', '#3d6a8a', '#4f7a3a', '#6b4a8a', '#b0661e', '#2f7a7a'];
+async function cloudEnter(user, name) {
+  $('#app').innerHTML = '<div class="login"><div class="banner"><h1>Quadro de Missões</h1></div><p class="banner-sub">Carregando a mesa…</p></div>';
+  try { await cloudLoad(); }
+  catch (e) { console.error(e); $('#app').innerHTML = `<div class="login"><div class="panel"><h3>Não consegui carregar os dados</h3><p class="small muted">${esc(e.message || e)}</p><button class="btn gold block" onclick="location.reload()">Tentar de novo</button></div></div>`; return; }
+  let u = DB.user(user.id);
+  if (!u) { u = { id: user.id, name: name || user.user_metadata?.name || user.email.split('@')[0], email: user.email.toLowerCase(), color: PLAYER_COLORS[DB.d.users.length % PLAYER_COLORS.length], created_at: now() }; DB.d.users.push(u); DB.save(); }
+  S.user = user.id; S.view = 'home'; cloudSubscribe(); render();
+}
+async function cloudAuth(mode, email, pw, name) {
+  const err = $('#authErr'), btn = $('#authForm button[type=submit]');
+  if (btn) btn.disabled = true; if (err) err.textContent = '';
+  const msg = e => /Invalid login/i.test(e.message) ? 'E-mail ou senha incorretos.' : /not confirmed/i.test(e.message) ? 'Confirme seu e-mail pelo link que o Supabase enviou e depois entre.' : /already registered/i.test(e.message) ? 'Já existe uma conta com esse e-mail.' : e.message;
+  try {
+    if (mode === 'register') {
+      const { data, error } = await sb.auth.signUp({ email, password: pw, options: { data: { name } } });
+      if (error) throw error;
+      if (!data.session) { S.authMode = 'login'; render(); toast('Conta criada! Confirme o e-mail e depois entre.'); return; }
+      await cloudEnter(data.user, name); toast('Conta criada! Bem-vindo, ' + name);
+    } else {
+      const { data, error } = await sb.auth.signInWithPassword({ email, password: pw });
+      if (error) throw error;
+      await cloudEnter(data.user);
+    }
+  } catch (e) { if ($('#authErr')) $('#authErr').textContent = msg(e); }
+  finally { const b = $('#authForm button[type=submit]'); if (b) b.disabled = false; }
+}
+async function cloudLogout() {
+  try { await sb.removeAllChannels(); await sb.auth.signOut(); } catch (e) {}
+  DB.d = emptyData(); takeSnap(); S.user = null; S.view = 'login'; S.authMode = 'login'; closeModal(); render();
+}
+async function storeImage(img) {
+  if (!CLOUD || !sb || !img.image || !img.image.startsWith('data:')) return img;
+  const blob = await (await fetch(img.image)).blob(), path = `${S.cid || 'geral'}/${uid('img_')}.jpg`;
+  const { error } = await sb.storage.from('mapas').upload(path, blob, { contentType: 'image/jpeg' });
+  if (error) throw new Error('Não consegui enviar a imagem: ' + error.message);
+  return { ...img, image: sb.storage.from('mapas').getPublicUrl(path).data.publicUrl };
+}
+async function cloudStart() {
+  $('#app').innerHTML = '<div class="login"><div class="banner"><h1>Quadro de Missões</h1></div><p class="banner-sub">Conectando…</p></div>';
+  try {
+    if (!window.supabase) await loadScript('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2');
+    sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    const { data } = await sb.auth.getSession();
+    if (data.session) await cloudEnter(data.session.user); else { S.view = 'login'; render(); }
+  } catch (e) {
+    console.error(e);
+    $('#app').innerHTML = `<div class="login"><div class="panel"><h3>Sem conexão com o servidor</h3><p class="small muted">Verifique a internet. ${esc(e.message || '')}</p><button class="btn gold block" onclick="location.reload()">Tentar de novo</button></div></div>`;
+  }
+}
+
 // ---------- eventos globais ----------
 document.addEventListener('click', e => {
   const el = e.target.closest('[data-act]'); if (!el) return;
@@ -2409,6 +2532,7 @@ document.addEventListener('submit', e => {
   if (f.id === 'condForm') { const sh = DB.sheet(M.id), c = v('c'); if (c) { sh.data.condicoes = [...new Set([...(sh.data.condicoes || []), c])]; DB.save(); refreshModal(); render(); } return; }
   if (f.id === 'authForm') {
     const email = v('email').toLowerCase(), pw = v('password'), err = $('#authErr');
+    if (CLOUD) { cloudAuth(S.authMode, email, pw, v('name')); return; }
     if (S.authMode === 'register') {
       if (DB.d.users.some(u => u.email === email)) return err.textContent = 'Já existe uma conta com esse e-mail.';
       const colors = ['#a8322a', '#3d6a8a', '#4f7a3a', '#6b4a8a', '#b0661e', '#2f7a7a'];
@@ -2552,8 +2676,11 @@ document.addEventListener('drop', e => { const d = e.target.closest && e.target.
 
 // ---------- início ----------
 DB.load();
-try { const s = localStorage.getItem(KEY + '_s'); if (s && DB.user(s)) { S.user = s; S.view = 'home'; } } catch (e) {}
-render();
+if (CLOUD) cloudStart();
+else {
+  try { const s = localStorage.getItem(KEY + '_s'); if (s && DB.user(s)) { S.user = s; S.view = 'home'; } } catch (e) {}
+  render();
+}
 </script>
 </body>
 </html>
