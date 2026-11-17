@@ -29,6 +29,14 @@ jobs:
       - name: Copiar o app para o Android
         run: npx cap sync android
 
+      - name: Ícone e tela de abertura do Omni RP
+        run: |
+          rm -f android/app/src/main/res/drawable-v24/ic_launcher_foreground.xml android/app/src/main/res/drawable/ic_launcher_background.xml
+          rm -rf android/app/src/main/res/mipmap-anydpi-v26
+          find android/app/src/main/res -name 'ic_launcher*.webp' -delete
+          cp -r resources/android/res/. android/app/src/main/res/
+          sed -i 's#<string name="app_name">.*</string>#<string name="app_name">Omni RP</string>#; s#<string name="title_activity_main">.*</string>#<string name="title_activity_main">Omni RP</string>#' android/app/src/main/res/values/strings.xml
+
       - name: Compilar APK (debug)
         run: |
           cd android
@@ -37,5 +45,5 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: quadro-de-missoes-apk
+          name: omni-rp-apk
           path: android/app/build/outputs/apk/debug/*.apk
