@@ -28,3 +28,10 @@ create policy "logados enviam mapas" on storage.objects for insert to authentica
   with check (bucket_id = 'mapas');
 create policy "todos veem mapas" on storage.objects for select
   using (bucket_id = 'mapas');
+
+-- 5) (v1.24) Atualização a cada 3 s: o servidor carimba a hora de cada mudança
+create or replace function public.docs_touch() returns trigger language plpgsql as $$
+begin new.updated_at := now(); return new; end $$;
+drop trigger if exists docs_touch on public.docs;
+create trigger docs_touch before insert or update on public.docs for each row execute function public.docs_touch();
+create index if not exists docs_updated_at on public.docs (updated_at);
